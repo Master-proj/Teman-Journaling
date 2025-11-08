@@ -7,20 +7,37 @@ from langchain_core.messages import HumanMessage, AIMessage  # For message forma
 # --- 1. Page Configuration and Title ---
 
 # Set the title and a caption for the web page
-st.title("💬 LangGraph ReAct Chatbot")
-st.caption("A simple and friendly chat using LangGraph with Google's Gemini model")
+st.title("🧘 Teman Journaling.AI")
+st.caption("Curhat, refleksi, dan dapatkan dukungan empatik dari AI yang memahami perasaanmu.")
 
 # --- 2. Sidebar for Settings ---
 
 # Create a sidebar section for app settings using 'with st.sidebar:'
 with st.sidebar:
     # Add a subheader to organize the settings
-    st.subheader("Settings")
+    st.subheader("🧠 Mood Hari Ini")
+    mood = st.radio(
+        "Bagaimana perasaanmu hari ini?",
+        ["😊 Bahagia", "😐 Biasa aja", "😔 Sedih", "😤 Stres", "😠 Marah"]
+    )
     
     # Create a text input field for the Google AI API Key.
     # 'type="password"' hides the key as the user types it.
     google_api_key = st.text_input("Google AI API Key", type="password")
     
+    #Add spesific model topic
+    topic = st.selectbox("Jenis Konseling", ["Umum", "Stres", "Hubungan", "Akademik", "Percintaan"])
+
+    #Deep of feelings prompt
+    depth = st.slider("Kedalaman Konseling", 1, 3, 2, 
+                    help="1 = ringan, 2 = reflektif, 3 = mendalam")
+
+    #Context prompt based on topic
+    context_prompt = f"Pengguna merasa {mood}. Responlah dengan empati yang sesuai dengan suasana hatinya."
+    context_prompt += f"Topik konseling pengguna adalah: {topic}."
+    context_prompt += f" Gaya konseling: level {depth} (1 = ringan, 3 = mendalam)."
+
+
     # Create a button to reset the conversation.
     # 'help' provides a tooltip that appears when hovering over the button.
     reset_button = st.button("Reset Conversation", help="Clear all messages and start fresh")
@@ -45,14 +62,21 @@ if ("agent" not in st.session_state) or (getattr(st.session_state, "_last_key", 
         llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             google_api_key=google_api_key,
-            temperature=0.7
+            temperature=0.8
         )
         
         # Create a simple ReAct agent with the LLM
         st.session_state.agent = create_react_agent(
             model=llm,
             tools=[],  # No tools for this simple example
-            prompt="You are a helpful, friendly assistant. Respond concisely and clearly."
+            prompt=(
+                f"{context_prompt}"
+                "Kamu adalah konselor virtual yang empatik dan mendengarkan dengan penuh perhatian. "
+                "Tugasmu adalah membantu pengguna memahami perasaannya dan memberikan dukungan emosional ringan, "
+                "tanpa memberikan diagnosis medis atau psikologis. "
+                "Gunakan bahasa yang lembut, sopan, dan menenangkan. "
+                "Jika pengguna tampak sangat tertekan, arahkan mereka untuk mencari bantuan profesional."
+            )
         )
         
         # Store the new key in session state to compare against later.
@@ -92,6 +116,16 @@ for msg in st.session_state.messages:
 # Create a chat input box at the bottom of the page.
 # The user's typed message will be stored in the 'prompt' variable.
 prompt = st.chat_input("Type your message here...")
+if prompt and any(word in prompt.lower() for word in ["bunuh diri", "mati", "tidak mau hidup"]):
+    answer = (
+        "Aku ikut prihatin mendengar kamu merasa seperti itu. "
+        "Kamu tidak sendiri. Cobalah hubungi orang yang kamu percaya atau layanan konseling profesional "
+        "seperti Kemenkes Hotline 119 ext 8 atau konselor kampus terdekat, ya. 🙏"
+    )
+    with st.chat_message("assistant"):
+        st.markdown(answer)
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.stop()
 
 # Check if the user has entered a message.
 if prompt:
